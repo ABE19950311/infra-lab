@@ -1,0 +1,170 @@
+
+■ホスト情報一覧表示
+abe@NPC-23-002:~$ hostnamectl status
+ Static hostname: NPC-23-002
+       Icon name: computer-container
+         Chassis: container
+      Machine ID: 6a0596464878419ab5ec4af268692e9c
+         Boot ID: 93f9bc40993a411c8f3b230977c53a31
+  Virtualization: wsl
+Operating System: Ubuntu 22.04.4 LTS
+          Kernel: Linux 6.6.87.2-microsoft-standard-WSL2
+    Architecture: x86-64
+
+■dockerでnfsサーバ構築時に以下エラー
+exportfs: /nfs does not support NFS export
+⇒nfsをサポートしてないファイルシステムになっている
+[root@a36f0c06b11d ~]# df -T /nfs
+Filesystem     Type     1K-blocks     Used Available Use% Mounted on
+overlay        overlay 1055762868 19326600 982732796   2% /
+
+
+■サーバ調査時に便利な呪文
+サーバでactiveになっているサービス一覧確認する
+$ systemctl list-units -t service --no-pager
+
+サーバに入ってる全サービス確認する
+$ systemctl list-unit-files -t service --no-pager
+
+
+■postfixで他サーバからメール送信する際にRelay access deniedが出る
+https://tech-mmmm.blogspot.com/2018/03/postfix454-471-relay-access-denied.html
+main.cfのmynetworksに送信元サーバからのIPを許可していなかった。
+
+■ansibleでTypeError: 'NoneType' object is not iterable
+中身空なのに定義していると発生する
+---
+- hosts: www
+  become: true
+  vars_files: ←中身全文コメントアウトしているのに定義しているためNG
+    #- inventories/common/var.yml
+    #- inventories/common/secret.yml
+    #- inventories/dev/var.yml
+  environment:
+    http_proxy: "{{ http_proxy | default('') }}"
+  roles:
+    - common
+    - base-alma
+    #- nfsmount
+    #- script-perl
+    #- script-php
+    #- application-settings
+    - apache
+    #- aws-cli
+
+■ansible実行時のssh接続にパス聞かれて入れない
+素直に対象サーバのユーザにパス設定する
+$ sudo passwd 対象ユーザ
+
+■ansibleの対象サーバにpython3があってpythonじゃない場合の対処
+"/bin/sh: /usr/bin/python: No such file or directory\r\n",
+https://dev.classmethod.jp/articles/ansible-python3/
+実行コマンドに-e 'ansible_python_interpreter=/usr/bin/python3'を入れる
+
+
+
+systecmtlない
+⇒systemd対応してないイメージ使ってるため
+⇒対応しているイメージ使う
+
+基本的なlinuxコマンドがコンテナにない
+⇒build時にdnf,yum等で入れる
+
+System has not been booted with systemd as init system (PID 1). Can't operate.
+Failed to connect to bus: Host is down
+⇒https://zenn.dev/ippe1/articles/327f2b1ed423cb
+
+
+コンテナのIP固定したい
+⇒https://zaki-hmkc.hatenablog.com/entry/2021/02/26/234357
+
+ブラウザからコンテナapacheリクエスト
+⇒https://zenn.dev/hiddy0329/articles/822aa3f0903f3f
+
+別サーバAPとの連携
+⇒https://qiita.com/Hiraku/items/60ef1ff9801fa9945d43
+
+php-fpm起動しても9000portで待ち受けない
+⇒/etc/php-fpm.d/www.confで以下記述を変える
+; listen = /run/php-fpm/www.sock
+　　　　　↓
+listen = 0.0.0.0:9000
+
+apacheからphp-fpm疎通とれない
+ apへのping,ncでのport確認問題ないのにだめ
+ nc -zv 172.28.10.3 9000
+理由 Connection reset by peer
+/etc/php-fpm.d/www.confで、デフォルトだとローカルからしか受け付けてなかった
+webサーバのIPを受け付けるように変更
+; listen.allowed_clients = 127.0.0.1
+listen.allowed_clients = 172.28.10.2
+https://qiita.com/ko-suke2020/items/dd7468d6f8f1010e85bd
+
+apからdbに接続できない
+Host 'ap.create_server_custom_net' is not allowed to connect to this MySQL server
+⇒ユーザにアクセス権がないため。GRANT ALL PRIVILEGES
+https://zenn.dev/ryo_kawamata/articles/mysql-connect-error
+
+nagios初期構築
+https://www.unix-power.net/networking/post-616
+　nagios入れたら/etc/httpd/conf.d/nagios.conf が出来る
+　httpとnagios起動
+　→includeで/etc/httpd/conf.d/nagios.conf読む
+　→Alias /nagios "/usr/share/nagios/html"より、/nagiosでindex読みにに行く
+  →basic認証用にhtpasswd設定しておく
+
+nagios設定追加関連
+https://www.unix-power.net/networking/post-616
+ Invalid max_check_attempts value for host
+ https://blog.goo.ne.jp/hasebennki/e/d7816edbfcf8c242eefb787d6910d030
+ /etc/nagios/nagios.cfgに以下追加
+ # 追記
+cfg_file=/etc/nagios/objects/services.cfg
+cfg_file=/etc/nagios/objects/hosts.cfg
+[root@9ffbac8147cb objects]# cat hosts.cfg
+define host{
+   use       linux-server
+   host_name web
+   address   172.28.10.2
+}
+define host{
+   use       linux-server
+   host_name ap
+   address   172.28.10.3
+}
+define host{
+   use       linux-server
+   host_name db
+   address   172.28.10.4
+}
+[root@9ffbac8147cb objects]# cat services.cfg
+define service {
+    use                     generic-service
+    host_name               web
+    service_description     PING
+    check_command           check_ping!100.0,20%!500.0,60%
+}
+define service {
+    use                     generic-service
+    host_name               ap
+    service_description     PING
+    check_command           check_ping!100.0,20%!500.0,60%
+}
+define service {
+    use                     generic-service                                                                   
+    host_name               db
+    service_description     PING
+    check_command           check_ping!100.0,20%!500.0,60%
+}
+
+pacemaker+corosyncとは
+https://www.tohoho-web.com/ex/pacemaker.html#:~:text=Pacemaker%2FHeartbeat%2FCorosync%20%E3%81%AF%20Linux,%E8%80%90%E6%95%85%E9%9A%9C%E6%80%A7%E3%82%92%E9%AB%98%E3%82%81%E3%81%BE%E3%81%99%E3%80%82
+https://www.designet.co.jp/ossinfo/ha-cluster/corosync/
+
+
+・innodbクラスタ関連
+ innodbクラスタの構成はmysqlshで。実施場所はmysqlrouterサーバ
+
+
+
+
