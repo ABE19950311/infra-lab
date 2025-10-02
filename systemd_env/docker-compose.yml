@@ -1,0 +1,238 @@
+#version: '3.8'
+
+services:
+  # local -> lb_clusterの仮想IPへリクエストしたい
+  # 間に仮想IPへリクエストする用のコンテナを挟めば可能になった
+  # local -> gateway -> lb_cluster仮想IP -> primary_lb -> web -> ...
+  systemd_gateway:
+    image: nginx:alpine
+    container_name: systemd_gateway
+    ports:
+      - "172.19.93.103:80:80" # ホストに割り当たってるIPと80番ポートを公開
+      - "172.19.93.103:443:443"
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.2
+
+  systemd_lb1:
+    build: ./web
+    container_name: systemd_lb1
+    privileged: true
+    command: /sbin/init
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.3
+
+  systemd_lb2:
+    build: ./web
+    container_name: systemd_lb2
+    privileged: true
+    command: /sbin/init
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.4
+
+  systemd_web1:
+    build: ./web
+    container_name: systemd_web1
+    privileged: true
+    command: /sbin/init
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.5
+
+  systemd_web2:
+    build: ./web
+    container_name: systemd_web2
+    privileged: true
+    command: /sbin/init
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.6
+
+  systemd_ap1:
+    build: ./ap
+    container_name: systemd_ap1
+    privileged: true
+    command: /sbin/init
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.7
+  
+  systemd_ap2:
+    build: ./ap
+    container_name: systemd_ap2
+    privileged: true
+    command: /sbin/init
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.8
+  
+  systemd_mysqlrouter_ra:
+    build: ./db
+    container_name: systemd_mysqlrouter_ra
+    privileged: true
+    command: /sbin/init
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.9
+  
+  systemd_mysqlrouter_rb:
+    build: ./db
+    container_name: systemd_mysqlrouter_rb
+    privileged: true
+    command: /sbin/init
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.10
+  
+  systemd_db1:
+    build: ./db
+    container_name: systemd_db1
+    privileged: true
+    command: /sbin/init
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: appdb
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppass
+    ports:
+      - "3306:3306"
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.11
+  
+  systemd_db2:
+    build: ./db
+    container_name: systemd_db2
+    privileged: true
+    command: /sbin/init
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: appdb
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppass
+    ports:
+      - "3307:3306"
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.12
+
+  systemd_db3:
+    build: ./db
+    container_name: systemd_db3
+    privileged: true
+    command: /sbin/init
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: appdb
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppass
+    ports:
+      - "3308:3306"
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.13
+
+  systemd_nagios:
+    build: ./nagios
+    container_name: systemd_nagios
+    privileged: true
+    command: /sbin/init
+    ports:
+      - "8081:80"
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.14
+
+  systemd_smtp:
+    build: ./ap
+    container_name: systemd_smtp
+    privileged: true
+    command: /sbin/init
+    ports:
+      - "2525:25"
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.15
+
+  systemd_dns:
+    build: ./ap
+    container_name: systemd_dns
+    privileged: true
+    command: /sbin/init
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.16
+  
+  systemd_ansible:
+    build: ./ap
+    container_name: systemd_ansible
+    privileged: true
+    command: /sbin/init
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.17
+  
+  systemd_nfs:
+    build: ./ap
+    container_name: systemd_nfs
+    privileged: true
+    command: /sbin/init
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.18
+
+  systemd_ftp:
+    build: ./ap
+    container_name: systemd_ftp
+    privileged: true
+    command: /sbin/init
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.19
+  
+  systemd_drbd1:
+    build: ./ap
+    container_name: systemd_drbd1
+    privileged: true
+    command: /sbin/init
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.20
+
+  systemd_drbd2:
+    build: ./ap
+    container_name: systemd_drbd2
+    privileged: true
+    command: /sbin/init
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.21
+
+  # syslog:
+  #   build: ./ap
+  #   container_name: ap
+  #   privileged: true
+  #   command: /sbin/init
+  #   networks:
+  #     custom_net:
+  #       ipv4_address: 172.28.10.6
+
+#htaccess
+#modsec
+#lvm
+#logrotate
+#drbd(複製対象mysql)
+#clamav等
+#syslog
+#service化
+#/sys/initが動いてない場合の手順作成
+
+networks:
+  custom_net:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/16
+          gateway: 172.28.0.1

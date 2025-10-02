@@ -73,6 +73,9 @@ subjectAltName=DNS:localhost,IP:127.0.0.1
 # openssl x509 -req -days 3650 -signkey server.key -in server.csr -out server.crt -extfile san.txt
 // 確認
 # openssl x509 -text < server.crt
+
+// pem
+# cat server.crt server.key > server.pem
 ```````````````````````````````
 
 4. オレオレ証明書適用

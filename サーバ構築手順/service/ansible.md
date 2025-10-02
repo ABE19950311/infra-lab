@@ -58,11 +58,14 @@ $ touch /home/ansible/ansible/www.yml
 $ touch /home/ansible/ansible/ap.yml
 $ touch /home/ansible/ansible/db.yml
 $ touch /home/ansible/ansible/mail.yml
+$ touch /home/ansible/ansible/nfs.yml
 $ touch /home/ansible/ansible/all.yml
 $ cd /home/ansible/ansible/roles
 $ ansible-galaxy init common
 $ ansible-galaxy init base-alma
 $ ansible-galaxy init apache
+$ ansible-galaxy init nfsmount
+$ ansible-galaxy init nfsserver
 $ mkdir /home/ansible/ansible/roles/apache/files
 ※/home/ansible/ansible/roles/apache/filesに適用するssl証明書、秘密鍵を設置する
 ※証明書のuser,groupはansibleユーザに変えておく
@@ -90,6 +93,9 @@ ap1
 
 [db]
 db1
+
+[other]
+nfs
 
 $ vi /home/ansible/ansible/roles/common/handlers/main.yml
 ---
@@ -199,7 +205,7 @@ $ vi /home/ansible/ansible/www.yml
   roles:
     - common
     - base-alma
-    #- nfsmount
+    - nfsmount
     #- script-perl
     #- script-php
     #- application-settings
@@ -264,6 +270,12 @@ $ vi /home/ansible/ansible/roles/apache/tasks/httpd.yml
   with_items:
     - httpd
 
+$ vi /home/ansible/ansible/inventories/dev/group_vars/www.yml
+hoge: 
+  nfs:
+    mount:
+      - { host: 172.28.10.15, path: /srv/nfs, mount_dir: /mnt/nfs, opts: 'vers=3,proto=tcp,hard,intr,bg' }
+
 ``````````````````````````````````````
 
 9. ap設定追記
@@ -274,6 +286,115 @@ $ vi /home/ansible/ansible/roles/apache/tasks/httpd.yml
 ``````````````````````````````````````
 
 
+10. nfsサーバ設定追記
+``````````````````````````````````````
+$ vi /home/ansible/ansible/nfs.yml
+------------以下を追記-----------------
+---
+- hosts: other
+  become: true
+  #vars_files:
+    #- inventories/common/var.yml
+    #- inventories/common/secret.yml
+    #- inventories/dev/var.yml
+  environment:
+    http_proxy: "{{ http_proxy | default('') }}"
+  roles:
+    - nfsserver
+
+$ vi /home/ansible/ansible/roles/nfsserver/tasks/main.yml
+---
+- { include: nfsserver.yml, tags: nfsserver }
+
+
+$ vi /home/ansible/ansible/roles/nfsserver/tasks/nfsserver.yml
+---
+- name: nfs_mount / nfs 必須パッケージ導入
+  dnf:
+    name: '{{ item }}'
+    state: present
+  with_items:
+    - nfs-utils
+    - e2fsprogs
+
+- name: nfs 起動
+  systemd:
+    name: '{{ item }}'
+    enabled: yes
+    state: started
+  with_items:
+    - nfs-server
+
+- name: Create disk image file (1GB)
+  command: 
+    cmd: 'dd if=/dev/zero of=/srv/nfs_disk.img bs=1M count=1024'
+  #creates: /srv/nfs_disk.img errorになる
+
+- name: Create ext4 filesystem
+  command: 
+    cmd: 'mkfs.ext4 /srv/nfs_disk.img'
+ 
+- name: Create mount point
+  file:
+    path: /srv/nfs
+    state: directory
+    mode: '0755'
+
+- name: Mount the disk image to /srv/nfs
+  mount:
+    path: /srv/nfs
+    src: /srv/nfs_disk.img
+    fstype: ext4
+    opts: loop
+    state: mounted
+
+- name: Ensure /etc/exports entry exists
+  lineinfile:
+    path: /etc/exports
+    line: "/srv/nfs 172.28.0.0/16(rw,async,no_root_squash)"
+    create: yes
+
+- name: Export NFS shares
+  command: 
+    cmd: 'exportfs -rv'
+``````````````````````````````````````
+
+11 nfsクライアント設定追記
+``````````````````````````````````````
+$ vi /home/ansible/ansible/roles/nfsmount/tasks/main.yml
+---
+- { include: nfsmount.yml, tags: nfsmount }
+
+$ vi /home/ansible/ansible/roles/nfsmount/tasks/nfsmount.yml
+---
+- name: nfs_mount / nfs 必須パッケージ導入
+  dnf:
+    name: '{{ item }}'
+    state: present
+  with_items:
+    - nfs-utils
+
+- name: nfs_mount / nfsマウントディレクトリ作成
+  file:
+    path:  '{{ item.path  }}'
+    owner: '{{ item.owner }}'
+    group: '{{ item.group }}'
+    mode:  '{{ item.mode  }}'
+    state: directory
+  with_items:
+   - { path: /mnt/nfs, owner: root, group: root, mode: '0755' }
+
+- name: nfs_mount / nfsマウント
+  mount:
+    name: '{{ item.mount_dir }}'
+    src:  '{{ item.host }}:{{ item.path }}'
+    opts: '{{ item.opts }}'
+    fstype: nfs
+    state: mounted
+  with_items:
+    '{{ hoge.nfs.mount }}'
+
+``````````````````````````````````````
 
 
 

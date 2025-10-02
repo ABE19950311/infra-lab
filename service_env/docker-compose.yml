@@ -1,0 +1,223 @@
+
+
+services:
+  # local -> lb_clusterの仮想IPへリクエストしたい
+  # 間に仮想IPへリクエストする用のコンテナを挟めば可能になった
+  # local -> gateway -> lb_cluster仮想IP -> primary_lb -> web -> ...
+  service_gateway:
+    image: nginx:alpine
+    container_name: service_gateway
+    ports:
+      - "172.19.93.103:80:80" # ホストに割り当たってるIPと80番ポートを公開
+      - "172.19.93.103:443:443"
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.2
+
+  service_lb1:
+    build: ./web
+    container_name: service_lb1
+    tty: true
+    privileged: true
+    command: /sbin/init
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.3
+
+  service_lb2:
+    build: ./web
+    container_name: service_lb2
+    tty: true
+    privileged: true
+    command: /sbin/init
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.4
+
+  service_web1:
+    build: ./web
+    container_name: service_web1
+    tty: true
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.5
+
+  service_web2:
+    build: ./web
+    container_name: service_web2
+    tty: true
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.6
+
+  service_ap1:
+    build: ./ap
+    container_name: service_ap1
+    tty: true
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.7
+  
+  service_ap2:
+    build: ./ap
+    container_name: service_ap2
+    tty: true
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.8
+  
+  service_mysqlrouter_ra:
+    build: ./db
+    container_name: service_mysqlrouter_ra
+    tty: true
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.9
+  
+  service_mysqlrouter_rb:
+    build: ./db
+    container_name: service_mysqlrouter_rb
+    tty: true
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.10
+  
+  service_db1:
+    build: ./db
+    container_name: service_db1
+    tty: true
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: appdb
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppass
+    ports:
+      - "3306:3306"
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.11
+  
+  service_db2:
+    build: ./db
+    container_name: service_db2
+    tty: true
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: appdb
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppass
+    ports:
+      - "3307:3306"
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.12
+
+  service_db3:
+    build: ./db
+    container_name: service_db3
+    tty: true
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: appdb
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppass
+    ports:
+      - "3308:3306"
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.13
+
+  service_nagios:
+    build: ./nagios
+    container_name: service_nagios
+    tty: true
+    ports:
+      - "8081:80"
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.14
+
+  service_smtp:
+    build: ./ap
+    container_name: service_smtp
+    tty: true
+    ports:
+      - "2525:25"
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.15
+
+  service_dns:
+    build: ./ap
+    container_name: service_dns
+    tty: true
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.16
+  
+  service_ansible:
+    build: ./ap
+    container_name: service_ansible
+    tty: true
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.17
+  
+  service_nfs:
+    build: ./ap
+    container_name: service_nfs
+    tty: true
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.18
+
+  service_ftp:
+    build: ./ap
+    container_name: service_ftp
+    tty: true
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.19
+  
+  service_drbd1:
+    build: ./ap
+    container_name: service_drbd1
+    tty: true
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.20
+
+  service_drbd2:
+    build: ./ap
+    container_name: service_drbd2
+    tty: true
+    networks:
+      custom_net:
+        ipv4_address: 172.28.10.21
+
+  # syslog:
+  #   build: ./ap
+  #   container_name: ap
+  #   privileged: true
+  #   command: /sbin/init
+  #   networks:
+  #     custom_net:
+  #       ipv4_address: 172.28.10.6
+
+#htaccess
+#modsec
+#basic認証
+#logrotate
+#drbd(複製対象mysql)
+#clamav等
+#syslog
+#service化
+#/sys/initが動いてない場合の手順作成
+
+networks:
+  custom_net:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/16
+          gateway: 172.28.0.1
