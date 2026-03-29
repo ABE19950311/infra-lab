@@ -1,7 +1,124 @@
+/etc/yum.repos.d/CentOS-Base.repo
+
+[root@aws_st6kanri1001 ~]# cat /etc/yum.repos.d/CentOS-Base.repo
+[base]
+name=CentOS-$releasever - Base
+# baseurl=http://10.200.130.94/latest/centos/$releasever/os/$basearch/
+#baseurl=http://mirror.centos.org/centos/$releasever/os/$basearch/
+#baseurl=http://mirror.centos.org/centos/7/os/x86_64/
+baseurl=http://vault.centos.org/centos/7/os/x86_64/
+gpgcheck=1
+#gpgcheck=0
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
+
+#released updates
+[updates]
+name=CentOS-$releasever - Updates
+# baseurl=http://10.200.130.94/latest/centos/$releasever/updates/$basearch/
+# baseurl=http://mirror.centos.org/centos/$releasever/os/$basearch/
+baseurl=http://vault.centos.org/centos/7/updates/x86_64/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
+
+#additional packages that may be useful
+[extras]
+name=CentOS-$releasever - Extras
+# baseurl=http://10.200.130.94/latest/centos/$releasever/extras/$basearch/
+# baseurl=https://ftp-srv2.kddilabs.jp/Linux/distributions/fedora/epel/7/x86_64/
+baseurl=http://vault.centos.org/centos/7/extras/x86_64/
+gpgcheck=0
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
+/etc/yum.repos.d/epel.repo
+
+[root@aws_st6kanri1001 ~]# cat /etc/yum.repos.d/epel.repo
+[epel]
+name=Extra Packages for Enterprise Linux 7 - $basearch
+# baseurl=http://10.200.130.94/latest/fedora/epel/7/$basearch
+# baseurl=https://ftp.riken.jp/Linux/fedora/epel/7/x86_64/
+baseurl=https://archives.fedoraproject.org/pub/archive/epel/7/x86_64/
+failovermethod=priority
+enabled=1
+#gpgcheck=1
+gpgcheck=0
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-7
+キャッシュの影響を防ぐためyum clean all実施
+$ yum clean all
+
+
 https://docs.google.com/spreadsheets/d/1xLtSJK1TqNhlpQIzTS_1fI1Bpl9N0a-Lq9Ou4wOOZow/edit?gid=0#gid=0
 https://drive.google.com/drive/folders/1dReiCwoGWndO48ufwKUVTwwdPjgn55B3
 redmin cloud 本番環境構築
 
+■ncがno avalibel protcolで動作しない
+ダウングレードする
+https://serverfault.com/questions/729746/netcat-fails-to-start-in-listening-mode
+
+■
+pacemaker起動じに特にエラーメッセージもなく起動しない場合
+→crm_monを実行可能か
+[root@cent6-lb2 ~]# crm_mon
+crm_mon: symbol lookup error: /usr/lib64/libpe_rules.so.2: undefined symbol: g_list_free_full
+が出る場合、依存パッケージのバージョンが古い
+
+■
+mysql5.1でレプリ機能がない
+-> mysqlデータごと複製しよう
+-> drbd使用
+
+■
+Pacemakerとcmanは、どちらもLinuxで**HAクラスタ（高可用性クラスタ）**を構築するために使われるオープンソースソフトウェアですが、役割が異なります。
+
+簡単に言うと、**Pacemakerが「司令塔」**で、cmanは「通信・連携役」のような関係です。（ただし、これは古い構成の話で、現在はcmanの役割はCorosyncが担うのが主流です。）
+
+## Pacemakerとは？ 司令塔の役割 🧠
+Pacemakerは**クラスタリソースマネージャ（CRM）**です。その主な役割は以下の通りです。
+
+リソースの監視と制御: Webサーバ（Apache）、データベース（MySQL）、仮想IPアドレスといった「リソース」が正常に動いているかを常に監視します。
+
+異常時の自動復旧: 監視しているリソースに異常（サーバダウンなど）を検知すると、そのリソースを停止させたり、待機系のサーバで再起動させたりします。この自動切り替え（フェイルオーバー）によって、サービスが停止する時間を最小限に抑えます。
+
+リソースの起動・停止順の管理: リソース同士の依存関係（例: データベースが起動してからWebサーバを起動する）を定義し、その順序通りに制御します。
+
+つまり、Pacemakerは**「いつ、どのサーバで、どのサービスを動かすか」を決定し、実行する司令塔**の役割を担います。
+
+## CMANとは？ 通信・連携役の役割 🤝
+CMANはクラスタマネージャの一種で、Red Hat系の古いシステムで使われていました。主な役割は以下の通りです。
+
+ノード間の死活監視: クラスタを構成する各サーバ（ノード）がお互いに生きているかを確認し合います（ハートビート通信）。
+
+メンバーシップ管理: どのサーバが現在クラスタのメンバーとして正常に参加しているかを管理します。
+
+メッセージング: サーバ間で状態を通知し合うための通信基盤を提供します。
+
+CMANは、Pacemakerのような司令塔が判断を下すための基礎情報（どのサーバが利用可能か）を提供する役割を担っていました。
+
+## Pacemakerとcmanの関係（と現在の主流）
+古い構成 (RHEL 6など):
+
+Pacemaker + cman + Corosync: この時代、cmanがクラスタのメンバー管理を行い、Pacemakerはcmanと連携してリソース管理を行っていました。cmanがCorosyncを内部的に利用する形でした。
+
+現在の主流 (RHEL 7以降):
+
+Pacemaker + Corosync: 現在は、cmanが担っていた役割はCorosyncというソフトウェアが全面的に担うようになりました。Corosyncがサーバ間の通信、死活監視、メンバーシップ管理といったクラスタの土台部分をすべて担当し、その上でPacemakerが司令塔としてリソースを管理します。
+
+したがって、現在HAクラスタを構築する場合、**「PacemakerとCorosync」**の組み合わせが標準的であり、cmanはレガシーな環境で使われるもの、と理解しておくと良いでしょう。
+
+■Unable to negotiate with ssh先IP port 22: no matching host key type found. Their offer: ssh-rsa,ssh-dssと出る
+・ssh -o HostKeyAlgorithms=+ssh-rsa　とするかssh configに書く
+
+■vmware上にcentos6minimalをインストールする方法
+・環境作成時の簡易インストールだと対応できない
+・空のディスク容量を作成→仮想マシンの設定を編集→CD/DVDにisoを指定して、起動時に接続をチェック
+インストール時のTEST→SKIP
+https://www.monobitengine.com/document/main001_3.htm
+
+■vmware,virtualbox等、仮想環境各ネットワークモードの違い
+https://shin569.hatenablog.com/entry/2020/04/11/220835
+https://qiita.com/m-tmatma/items/fa91530e3439dbc94445
+https://replication.hatenablog.com/entry/20110419/1303222195
+
+■OS起動の流れおよびsysVinit,upstart,systemdの違い
+https://tech.pjin.jp/blog/2020/11/11/linux-system-boot-2
 
 ■serviceとsystemdのコマンド違い一覧
 https://bacchi.me/linux/systemd-memo/

@@ -2,28 +2,28 @@
 ・OS
 [root@c22383d8a0fb /]# cat /etc/redhat-release
 AlmaLinux release 8.10 (Cerulean Leopard)
-・epel-releaseインストール済み
 ・ミドルウェアインストール時にインターネットへの経路が存在していること
 ・ansible未対応
 ・SSLはオレオレ証明書で対応
+・local<->ゲストOS間の通信をする際にプロキシ設定が無い事。有ると繋がらなくなる
 
 ■ web(httpd)
 
-0. host名変更
+1. host名変更
 ```````````````````````````````
 # hostnamectl set-hostname ホスト名
 # hostname
 ```````````````````````````````
 
-1. apache、mod_ssl,opensslインストール
+2. apache、mod_ssl,opensslインストール
 ```````````````````````````````
-# dnf install -y httpd mod_ssl openssl
+# dnf install -y epel-release httpd mod_ssl openssl
 # systemctl start httpd
 # systemctl enable httpd
 # systemctl status httpd
 ```````````````````````````````
 
-2. apサーバへのプロキシ設定追加
+3. apサーバへのプロキシ設定追加
 ```````````````````````````````
 # vi /etc/httpd/conf/httpd.conf
 ---------以下を追加する---------
@@ -56,7 +56,7 @@ AlmaLinux release 8.10 (Cerulean Leopard)
 </VirtualHost>
 ```````````````````````````````
 
-3. オレオレ証明書作成
+4. オレオレ証明書作成
 ※参照
 https://qiita.com/taitai22_1/items/019845da881733d522c2
 https://tex2e.github.io/blog/protocol/certificate-with-ip-addr
@@ -78,7 +78,7 @@ subjectAltName=DNS:localhost,IP:127.0.0.1
 # cat server.crt server.key > server.pem
 ```````````````````````````````
 
-4. オレオレ証明書適用
+5. オレオレ証明書適用
 ```````````````````````````````
 # mkdir -p /etc/httpd/conf.d/certs
 # mv server.crt server.key /etc/httpd/conf.d/certs/
@@ -91,7 +91,7 @@ subjectAltName=DNS:localhost,IP:127.0.0.1
 https://kekaku.addisteria.com/wp/20190327053337#toc7
 ```````````````````````````````
 
-5. firewall,selinuxが無効になっている事を確認
+6. firewall,selinuxが無効になっている事を確認
 ```````````````````````````````
 # systemctl status firewalld
 ⇒起動してたら、stopとdisable
@@ -106,13 +106,13 @@ SELINUX=disabled
 
 ■ ap(php,php-fpm)
 
-0. host名変更
+1. host名変更
 ```````````````````````````````
 # hostnamectl set-hostname ホスト名
 # hostname
 ```````````````````````````````
 
-1. php,php-fpmインストール
+2. php,php-fpmインストール
 ```````````````````````````````
 # dnf install -y php php-cli php-fpm
 # systemctl start php-fpm
@@ -120,7 +120,7 @@ SELINUX=disabled
 # systemctl status php-fpm
 ```````````````````````````````
 
-2. php-fpm listen設定
+3. php-fpm listen設定
 ```````````````````````````````
 # vi /etc/php-fpm.d/www.conf
 ---------以下内容で修正---------
@@ -132,12 +132,12 @@ listen.allowed_clients = webサーバのIP
 # systemctl restart php-fpm
 ```````````````````````````````
 
-3. 疎通確認用テストファイル作成
+4. 疎通確認用テストファイル作成
 ```````````````````````````````
 # echo "<?php phpinfo(); ?>" > /var/www/html/index.php
 ```````````````````````````````
 
-4. 簡単なtodoアプリ作成
+5. 簡単なtodoアプリ作成
 ```````````````````````````````
 // PDO使用用
 # dnf install -y php-pdo php-mysqlnd
@@ -210,7 +210,7 @@ $todos = $stmt->fetchAll();
 </html>
 ```````````````````````````````
 
-5. firewall,selinuxが無効になっている事を確認
+6. firewall,selinuxが無効になっている事を確認
 ```````````````````````````````
 # systemctl status firewalld
 ⇒起動してたら、stopとdisable
@@ -225,13 +225,13 @@ SELINUX=disabled
 
 ■ db(mysql)
 
-0. host名変更
+1. host名変更
 ```````````````````````````````
 # hostnamectl set-hostname ホスト名
 # hostname
 ```````````````````````````````
 
-1. mysqlインストール
+2. mysqlインストール
 ```````````````````````````````
 # dnf install -y mysql-server
 # systemctl start mysqld
@@ -239,14 +239,14 @@ SELINUX=disabled
 # systemctl status mysqld
 ```````````````````````````````
 
-2. 外部接続許可用ユーザ作成
+3. 外部接続許可用ユーザ作成
 ```````````````````````````````
 # mysql -u root
 mysql> CREATE USER 'sample_user' IDENTIFIED BY 'hoge';
 mysql> GRANT ALL PRIVILEGES ON *.* TO 'sample_user'@'%' WITH GRANT OPTION;
 ```````````````````````````````
 
-3. テスト用データベース、テーブル作成
+4. テスト用データベース、テーブル作成
 ```````````````````````````````
 mysql> CREATE DATABASE todoapp CHARACTER SET utf8mb4;
 mysql> USE todoapp;

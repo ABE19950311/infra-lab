@@ -60,6 +60,19 @@ backend app
 # systemctl status haproxy
 ```````````````````````````````
 
+5. firewall,selinuxが無効になっている事を確認
+```````````````````````````````
+# systemctl status firewalld
+⇒起動してたら、stopとdisable
+# getenforce
+⇒disableでなければ、以下無効設定をして再起動
+# vi /etc/selinux/config
+----------以下を設定------------
+SELINUX=disabled
+
+# reboot
+```````````````````````````````
+
 ■ https化
 
 1. ssl証明書を用意する
@@ -85,20 +98,34 @@ frontend main
 
 ■ haporxyクラスタ化
 
+1. hosts記載
+````````````````````````````````````````````````````
+# vi /etc/hosts
+--------------追記----------------
+lb1IP haproxy1
+lb2IP haproxy2
+````````````````````````````````````````````````````
+
 2. corosync,pacemakerインストール
 ````````````````````````````````````````````````````
 // haprocy(primary,secondary)
 // corosyncの依存関係解決後インストール
-# dnf install dnf-plugins-core -y
-# dnf config-manager --set-enabled powertools
-# dnf install -y corosync
+# dnf install -y dnf-plugins-core
+# dnf config-manager --set-enabled ha
 // packemaker,pcsリポジトリ有効とインストール
 // https://qiita.com/n-kashimoto/items/b22c35631bef26367897
-# dnf install -y pcs pacemaker fence-agents-all --enablerepo=ha
+# dnf install -y corosync pcs pacemaker fence-agents-all
 ````````````````````````````````````````````````````
 
 3. corosync,pacemaker起動
 ````````````````````````````````````````````````````
+！！！手動でcorosync.confを作成する必要はあるのか？
+！！！pcs cluster setup ～で自動作成されないか、再検証が必要
+https://clusterlabs.org/projects/pacemaker/doc/deprecated/en-US/Pacemaker/2.0/html/Pacemaker_Remote/_configure_corosync_on_cluster_nodes.html
+！！！pacemaker,corosyncをここで起動する必要はあるのか？
+！！！クラスタ起動時に自動で有効にならないか？pcsdだけで良いのでは
+https://docs.redhat.com/ja/documentation/red_hat_enterprise_linux/8/html/configuring_and_managing_high_availability_clusters/assembly_getting-started-with-pacemaker-configuring-and-managing-high-availability-clusters
+
 // Can't read file /etc/corosync/corosync.conf: No such file or directoryとなるため
 # vi /etc/corosync/corosync.conf
 totem {
@@ -110,12 +137,12 @@ totem {
 
 nodelist {
     node {
-        ring0_addr: lb1のIP
+        ring0_addr: haproxy1
         nodeid: 1
     }
 
     node {
-        ring0_addr: lb2のIP
+        ring0_addr: haproxy2
         nodeid: 2
     }
 }

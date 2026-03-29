@@ -20,3 +20,29 @@ $ hostname
 $ su -
 # dnf install -y drbd 
 ```````````````````````````````
+
+
+[root@spcartdb0101a ~]# cat /etc/drbd.conf
+resource r0 {
+  protocol B;
+  device     /dev/drbd0;
+  disk       /dev/sda6;
+  meta-disk  /dev/sda5[0];
+  syncer {
+    rate 128M;
+  }
+
+  on spcartdb0101a {
+    address    192.168.140.131:7801;
+  }
+  on spcartdb0101b {
+    address    192.168.140.132:7801;
+  }
+
+  handlers {
+    outdate-peer "/usr/lib64/heartbeat/drbd-peer-outdater -t 5";
+  }
+  disk {
+    fencing resource-only;
+  }
+}

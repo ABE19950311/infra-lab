@@ -1,11 +1,58 @@
 ■ 前提条件
 ・OS
-[root@da26a232e4f4 /]# cat /etc/redhat-release
-CentOS release 6.10 (Final)
+[root@cent6-web2 ~]# cat /etc/redhat-release
+CentOS release 6.4 (Final)
 ・epel-releaseインストール済み
 ・ミドルウェアインストール時にインターネットへの経路が存在していること
 ・ansible未対応
 ・SSLはオレオレ証明書で対応
+・リポジトリを変更していること。参照(http://extstrg.asabiya.net/pukiwiki/index.php?CentOS+6+%A5%B5%A5%DD%A1%BC%A5%C8%BD%AA%CE%BB%B8%E5%A4%CE%A5%EA%A5%DD%A5%B8%A5%C8%A5%EA%CA%D1%B9%B9)
+```
+cp -p /etc/yum.repos.d/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo_bak
+vi /etc/yum.repos.d/CentOS-Base.repo
+[base]
+name=CentOS-$releasever - Base
+#mirrorlist=http://mirrorlist.centos.org/?release=$releasever&arch=$basearch&repo=os
+baseurl=http://ftp.riken.jp/Linux/centos-vault/centos/$releasever/os/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+
+#released updates
+[updates]
+name=CentOS-$releasever - Updates
+#mirrorlist=http://mirrorlist.centos.org/?release=$releasever&arch=$basearch&repo=updates
+baseurl=http://ftp.riken.jp/Linux/centos-vault/centos/$releasever/updates/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+
+#additional packages that may be useful
+[extras]
+name=CentOS-$releasever - Extras
+#mirrorlist=http://mirrorlist.centos.org/?release=$releasever&arch=$basearch&repo=extras
+baseurl=http://ftp.riken.jp/Linux/centos-vault/centos/$releasever/extras/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+
+#additional packages that extend functionality of existing packages
+[centosplus]
+name=CentOS-$releasever - Plus
+#mirrorlist=http://mirrorlist.centos.org/?release=$releasever&arch=$basearch&repo=centosplus
+baseurl=http://ftp.riken.jp/Linux/centos-vault/centos/$releasever/centosplus/$basearch/
+gpgcheck=1
+enabled=0
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+
+#contrib - packages by Centos Users
+[contrib]
+name=CentOS-$releasever - Contrib
+#mirrorlist=http://mirrorlist.centos.org/?release=$releasever&arch=$basearch&repo=contrib
+baseurl=http://ftp.riken.jp/Linux/centos-vault/centos/$releasever/contrib/$basearch/
+gpgcheck=1
+enabled=0
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+
+yum clean all
+```
 
 ■ web (httpd)
 1. ホスト名変更
@@ -110,10 +157,10 @@ https://kekaku.addisteria.com/wp/20190327053337#toc7
 
 6. firewall, selinuxが無効になっている事を確認
 ```
-# service firewalld status
+# service iptables status
 ⇒起動してたら、stopとdisable
-# service firewalld stop
-# chkconfig firewalld off
+# service iptables stop
+# chkconfig iptables off
 
 # getenforce
 ⇒disableでなければ、以下無効設定をして再起動

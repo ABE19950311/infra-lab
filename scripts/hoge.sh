@@ -154,3 +154,4 @@ tee -a: 標準出力（画面）とファイルの両方に、同じ内容を追
 
 これらのスクリプトをベースに、自分の業務に合わせてカスタマイズすることで、日々の定型作業を大幅に効率化できます。
 
+# 使用率(%)だけを抽出し、90以上ならアラートを出す USAGE=$(df / | tail -n 1 | awk '{print $5}' | sed 's/%//') if [ $USAGE -ge 90 ]; then echo "Disk usage is critical: ${USAGE}%" | mail -s "Disk Alert!" admin@example.com fi
