@@ -1,48 +1,50 @@
    
 ■ 作業手順(nmcli)
 
-1. network,NetworkManager,インターフェース起動確認
+1. host名変更
+```````````````````````````````
+# hostnamectl set-hostname ホスト名
+# hostname
+```````````````````````````````
+
+2. network,NetworkManager,インターフェース起動確認
 ``````````````````````````````````````
 # systemctl status network
 # systemctl status NetworkManager
 # nmcli device status
 →disconnectedになっている場合は以下を実施
-# nmcli c up target_interface
+# nmcli c up "インターフェース名"
 # ip a
 `````````````````````````````````````
 
-2. IP固定
+3. インターフェース各設定
 `````````````````````````````````````
-# vi /etc/sysconfig/network-scripts/ifcfg-target_interface
--------------以下の様に修正---------
-TYPE=Ethernet
-PROXY_METHOD=none
-BROWSER_ONLY=no
-#BOOTPROTO=dhcp
-BOOTPROTO=static
-DEFROUTE=yes
-IPV4_FAILURE_FATAL=no
-NAME=ens160
-UUID=d55bbac4-898f-4773-99d3-b91777c13588
-DEVICE=ens160
-//起動時有効になるように
-ONBOOT=yes
-//以下IP設定
-IPADDR=固定したいIP
-NETMASK=
-GATEWAY=
-DNS1=
+// IP固定
+# nmcli c m "インターフェース名" ipv4.addresses "固定IP/CIDR"
+// デフォゲ設定
+# nmcli c m "インターフェース名" ipv4.gateway "gatewayIP"
+// dnsサーバ、ベース名設定
+# nmcli c m "インターフェース名" ipv4.dns "dnsサーバIP"
+# nmcli c m "インターフェース名" ipv4.dns-search "サーチベース名"
+// ipv4割り当てを手動にする
+# nmcli c m "インターフェース名" ipv4.method manual
 
-# nmcli c reload
-# nmcli c down target_interface
-# nmcli c up target_interface
+# nmcli c down "インターフェース名"
+# nmcli c up "インターフェース名"
+# nmcli device show "インターフェース名"
 `````````````````````````````````````
 
 ---
 
 ■作業手順(nmcliなし)
 
-1. network,NetworkManager,インターフェース起動確認
+1. host名変更
+```````````````````````````````
+# hostnamectl set-hostname ホスト名
+# hostname
+```````````````````````````````
+
+2. network,NetworkManager,インターフェース起動確認
 ``````````````````````````````````````
 # service network status
 # ip a
@@ -52,7 +54,7 @@ DNS1=
 # ifconfig -a
 `````````````````````````````````````
 
-2. IP固定
+3. IP固定
 `````````````````````````````````````
 # vi /etc/sysconfig/network-scripts/ifcfg-target_interface
 -------------以下の様に修正---------

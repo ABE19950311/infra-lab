@@ -1,21 +1,6 @@
-■ 前提条件
-・OS
-[root@c22383d8a0fb /]# cat /etc/redhat-release
-AlmaLinux release 8.10 (Cerulean Leopard)
-・ミドルウェアインストール時にインターネットへの経路が存在していること
-・ansible未対応
-・SSLはオレオレ証明書で対応
-・local<->ゲストOS間の通信をする際にプロキシ設定が無い事。有ると繋がらなくなる
+## ■ webサーバ構築(httpd)
 
-■ web(httpd)
-
-1. host名変更
-```````````````````````````````
-# hostnamectl set-hostname ホスト名
-# hostname
-```````````````````````````````
-
-2. apache、mod_ssl,opensslインストール
+### 1. apache、mod_ssl,opensslインストール
 ```````````````````````````````
 # dnf install -y epel-release httpd mod_ssl openssl
 # systemctl start httpd
