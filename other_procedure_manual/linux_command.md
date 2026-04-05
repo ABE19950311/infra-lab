@@ -95,3 +95,15 @@
 ---
 
 #### ifconfig,ip
+
+---
+
+#### findmnt
+/dev/mapper/almalinux_bc--24--11--5b--5c--c4-root on /var/named/chroot/etc/named.conf
+→/とnamed.confをマウント？
+→実際のマウント先がわかる
+[root@alma9-dns-m ~]# findmnt /var/named/chroot/etc/named.conf
+TARGET                        SOURCE                                                          FSTYPE OPTIONS
+/var/named/chroot/etc/named.conf
+                              /dev/mapper/almalinux_bc--24--11--5b--5c--c4-root[/etc/named.conf]
+                                                                                              xfs    rw,rela
