@@ -51,6 +51,7 @@ Listen 443 https
 subjectAltName = IP:webサーバのIP
             or
 subjectAltName=DNS:localhost,IP:127.0.0.1
+subjectAltName=DNS:*.hoge.com,DNS:hoge.com,IP:webサーバIP
 
 # openssl x509 -req -days 3650 -signkey server.key -in server.csr -out server.crt -extfile san.txt
 // 確認

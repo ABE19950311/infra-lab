@@ -1,6 +1,3 @@
-・手順
-OSは全て AlmaLinux release 8.10 (Cerulean Leopard)
-
 ■ 事前準備
 
 1. dbサーバでmysqlsh用のユーザを作成して権限を付与する
@@ -9,12 +6,8 @@ OSは全て AlmaLinux release 8.10 (Cerulean Leopard)
 $ ssh dbサーバ
 // dbサーバ
 $ sudo -i or su -
-# dnf install -y https://dev.mysql.com/get/mysql80-community-release-el8-1.noarch.rpm
-# dnf install -y mysql-server
-# systemctl start mysqld
-# systemctl status mysqld
 # mysql -u root
-> create user 'root'@'%' identified by '';
+> create user 'root'@'%' identified by 'パスワード';
 > grant all on *.* to 'root'@'%' with grant option;
 > exit
 // 残りのdbサーバに対しても同様に実施する
@@ -22,76 +15,30 @@ $ sudo -i or su -
 
 ■ 作業手順
 
-0. host名変更
-```````````````````````````````
-// mysqlrouterサーバ(primary,secondary)
-# hostnamectl set-hostname ホスト名
-# hostname
-```````````````````````````````
-
 1. mysqlrouter,corosync,pacemaker導入
 ````````````````````````````````````````````````````
 // mysqlrouterサーバ(primary,secondary)
-// MySQL公式リポジトリ追加（バージョン8.0を例に）
-# dnf install -y https://dev.mysql.com/get/mysql80-community-release-el8-1.noarch.rpm
+// MySQL公式リポジトリ追加（AlmaLinux 9用）
+# dnf install -y https://dev.mysql.com/get/mysql80-community-release-el9-1.noarch.rpm
 
 // MySQLの公式GPGキーを取得
 // https://qiita.com/Code_Dejiro/items/c97c400b92a85dce4468
 # rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2023
-// MySQL Router,mysqlsh のインストール
+
+// MySQL Router, mysqlsh のインストール
 # dnf install -y mysql-router mysql-shell
 
-// corosyncの依存関係解決後インストール
-# dnf install dnf-plugins-core -y
-# dnf config-manager --set-enabled powertools
-# dnf install -y corosync
-// packemaker,pcsリポジトリ有効とインストール
-// https://qiita.com/n-kashimoto/items/b22c35631bef26367897
-# dnf install -y pcs pacemaker fence-agents-all --enablerepo=ha
+// corosync, pacemaker, pcs, fence-agents の一括インストール
+// （AlmaLinux 9の HighAvailability リポジトリを指定）
+# dnf install -y corosync pcs pacemaker fence-agents-all --enablerepo=highavailability
 ````````````````````````````````````````````````````
 
-2. mysqlrouter,pacemaker,corosync起動
+2. pcsd起動
 ````````````````````````````````````````````````````
 // mysqlrouterサーバ(primary,secondary)
-# systemctl start mysqlrouter
-
-// Can't read file /etc/corosync/corosync.conf: No such file or directoryとなるため
-# vi /etc/corosync/corosync.conf
-totem {
-    version: 2
-    cluster_name: create_cluster
-    secauth: off
-    transport: udpu
-}
-
-nodelist {
-    node {
-        ring0_addr: mysqlrouter_ra
-        nodeid: 1
-    }
-
-    node {
-        ring0_addr: mysqlrouter_rb
-        nodeid: 2
-    }
-}
-
-quorum {
-    provider: corosync_votequorum
-    two_node: 1
-}
-
-logging {
-    to_logfile: yes
-    logfile: /var/log/cluster/corosync.log
-    to_syslog: yes
-}
-
-# systemctl start corosync
-// corosync起動後に行う
-# systemctl start pacemaker
-// pcs構築時のError: Unable to communicateを防ぐため
 # systemctl start pcsd
+# systemctl enable pcsd
+# systemctl status pcsd
 ````````````````````````````````````````````````````
 
 3. hosts記載
@@ -114,23 +61,19 @@ logging {
 # ping -c 3 db3
 ````````````````````````````````````````````````````
 
-3. 既にデータが存在している場合、メタデータの削除をする
-　（ない場合はスキップ）
+4. 既にデータが存在していて、クラスタの構成をやり直す場合、メタデータの削除をする。それ以外は以下の手順は実施しない事（クラスタの構成情報が消えるため）
 ````````````````````````````````````````````````````
 // mysqlrouterサーバ(primary,secondaryどちらか)
 # mysqlsh
 > \c root@プライマリにするいずれかのdbサーバのIP
-> dba.getCluster()
 > dba.dropMetadataSchema()
 > \quit
 ````````````````````````````````````````````````````
 
-4. innodbクラスタ構築
+5. innodbクラスタ構築
 ````````````````````````````````````````````````````
 mysqlrouterサーバ(primary,secondaryどちらか)
 // https://blog.s-style.co.jp/2024/09/2722/
-// dbサーバ接続確認
-# mysql -h dbサーバIP -u root
 # mysqlsh
 // ERROR: Instance must be configured and validated with dba.checkInstanceConfiguration() and dba.configureInstance() before it can be used in an InnoDB cluster.
 と出るため、クラスタ作成前にconfigureチェックする
@@ -139,21 +82,24 @@ Do you want to perform the required configuration changes? [y/n]: y
 Do you want to restart the instance after configuring it? [y/n]: y
 -> 他ノードに対しても同様に実行する
 > \quit
-// dbサーバ接続確認
-# mysql -h dbサーバIP -u root
+
 // クラスタ構築
-# mysqlsh
 > \c root@プライマリにするいずれかのdbサーバのIP
 > cluster = dba.createCluster('innodb_cluster')
 > cluster.addInstance('root@上記で指定した他ノードのdbサーバIP')
-Please select a recovery method [C]lone/[I]ncremental recovery/[A]bort (default Clone): I
+Please select a recovery method [C]lone/[I]ncremental recovery/[A]bort (default Clone): C
+// ステータス確認（全ノードが ONLINE になっていれば成功）
 > cluster.status()
 > \quit
-// 二回目以降cluster.status()する際は、cluster = dba.getCluster('innodb_cluster')
-してからcluster.status()する
+
+// ※二回目以降、再度接続してステータスを確認する際のコマンド
+# mysqlsh
+> \c root@プライマリのIP
+> cluster = dba.getCluster()
+> cluster.status()
 ````````````````````````````````````````````````````
 
-5. mysqlrouter設定
+6. mysqlrouter設定
 ````````````````````````````````````````````````````
 mysqlrouterサーバ(primary,secondary)
 // https://blog.s-style.co.jp/2024/09/2722/

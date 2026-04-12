@@ -32,7 +32,7 @@
 # nmcli c m profile名 ipv4.method manual
 
 # nmcli c up profile名
-# nmcli device show profile名
+# nmcli c show profile名
 `````````````````````````````````````
 
 ## ■ wifi作業手順(nmcli)
@@ -65,6 +65,9 @@
 # nmcli c show
 # nmcli device status
 # ip a
+
+// 使わないwifiプロファイルは削除するか割り当てを無効化しておく
+# nmcli ...
 `````````````````````````````````````
 
 ### 3. インターフェース各設定
@@ -80,7 +83,7 @@
 # nmcli c m profile名 ipv4.method manual
 
 # nmcli c up profile名
-# nmcli device show profile名
+# nmcli c show profile名
 `````````````````````````````````````
 
 ---
