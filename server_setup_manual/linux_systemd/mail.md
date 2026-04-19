@@ -1,28 +1,10 @@
 ## Postfix+Dovecot
 
-■ 前提条件  
-・OS
-[root@c22383d8a0fb /]# cat /etc/redhat-release  
-AlmaLinux release 8.10 (Cerulean Leopard)  
-・OP25Bに引っ掛かる場合はlocal配送
-
 ■ 作業手順
-
-1. host名変更
-```````````````````````````````
-# hostnamectl set-hostname ホスト名
-# hostname
-```````````````````````````````
 
 2. postfix、dovecotインストール
 ```````````````````````````
 # dnf install -y postfix dovecot
-# systemctl start postfix
-# systemctl start dovecot
-# systemctl enable postfix
-# systemctl enable dovecot
-# systemctl status postfix
-# systemctl status dovecot
 ```````````````````````````
 
 3. 587portとsmtp認証を有効にする(postfix)
@@ -66,10 +48,10 @@ broken_sasl_auth_clients = yes
 // このサーバで配送終了となるドメイン宛メール送信を許可
 // 接続元が$mynetworksにリストアップされたネットワーク・ホストから来たものであれば許可
 smtpd_recipient_restrictions =
+    permit_mynetworks
     permit_sasl_authenticated
     reject_unauth_destination
     permit_auth_destination
-    permit_mynetworks
 
 // 匿名ログインを許可しない
 smtpd_sasl_security_options = noanonymous
@@ -77,7 +59,9 @@ smtpd_sasl_security_options = noanonymous
 
 # postconf -n
 # postfix check
-# systemctl restart postfix
+# systemctl start postfix
+# systemctl enable postfix
+# systemctl status postfix
 
 // /etc/以下にaliasesが存在しない場合、以下コマンドを実行する
 # newaliases
@@ -117,9 +101,6 @@ unix_listener /var/spool/postfix/private/auth {
   }
 ------------------------------------------------
 
-# doveconf -n
-# systemctl restart dovecot
-
 // 暗号化なし（smtp認証のみ）の場合、以下を実施する
 # vi /etc/dovecot/conf.d/10-auth.conf
 ----------以下内容で編集-------------------------
@@ -136,7 +117,9 @@ ssl = no
 ------------------------------------------------
 
 # doveconf -n
-# systemctl restart dovecot
+# systemctl start dovecot
+# systemctl enable dovecot
+# systemctl status dovecot
 ```````````````````````````
 
 6. maildir作成設定
@@ -156,10 +139,14 @@ ssl = no
 // /etc/dovecot/conf.d/10-auth.confで、!include auth-system.conf.extとなっていれば、上記で作成したパスワードで認証する。
 ```````````````````````````
 
-8. firewallが無効になっている事を確認
+8. firewall許可
 ```````````````````````````````
-# systemctl status firewalld
-⇒起動してたら、stopとdisable
+# firewall-cmd --add-service=smtp --permanent
+# firewall-cmd --add-service=smtp-submission --permanent
+# firewall-cmd --add-service=pop3 --permanent
+# firewall-cmd --add-service=imap --permanent
+# firewall-cmd --reload
+# firewall-cmd --list-all
 ```````````````````````````````
 
 9. mailテスト送信
@@ -207,7 +194,7 @@ smtp_host_lookup = native
 // status=sent となっていること
 # less /var/log/maillog
 // 送信した内容のメールが届いていること
-# vi /home/hog/Maildir/new/smtp拡張子のファイル
+# vi /home/hoge/Maildir/new/smtp拡張子のファイル
 
 ※ログファイル自体存在しない場合、以下を実施
 # systemctl status rsyslog

@@ -24,7 +24,7 @@
 // IP固定
 # nmcli c m profile名 ipv4.addresses 固定IP/CIDR
 // デフォゲ設定
-# nmcli c m profile名 ipv4.gateway gatewayIP
+# nmcli c m profile名 ipv4.gateway gatewayIP (route metric)
 // dnsサーバ、ベース名設定
 # nmcli c m profile名 ipv4.dns dnsサーバIP
 # nmcli c m profile名 ipv4.dns-search サーチベース名
