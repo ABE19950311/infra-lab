@@ -133,8 +133,46 @@ ns              IN A    172.28.10.13(dnsサーバIP)
 
 ---
 
-### レコード追加手順
+### レコード追加手順(対象ドメインが未存在の場合)
 
+1. record作成
+``````````````````````````````````````
+# vi /etc/named/record.conf
+-----------以下を追記-----------
+zone "追加ドメイン"  IN {
+        type master;
+        file "zone/追加ドメイン.zone";
+};
+``````````````````````````````````````
 
+2. ゾーンファイル作成
+``````````````````````````````````````
+# vi /var/named/zone/追加ドメイン.zone
+-----------以下を追記-----------
+$TTL 1D
+@               IN SOA  ns.追加ドメイン. root.追加ドメイン. (
+                                        0       ; serial
+                                        1D      ; refresh
+                                        1H      ; retry
+                                        1W      ; expire
+                                        3H )    ; minimum
+                IN NS   ns.追加ドメイン.
+@               IN A    14.18.9.11
+ns              IN A    172.28.10.13(dnsサーバIP)
 
+# chown -R root:named /var/named/zone
+``````````````````````````````````````
 
+3. 構文チェック
+``````````````````````````````````````
+# named-checkconf /etc/named.conf
+→エラーが出ない事
+# named-checkzone 追加ドメイン /var/named/zone/追加ドメイン.zone
+→OKが表示される事
+``````````````````````````````````````
+
+4. named-chroot再起動
+`````````````````````````````````````
+# systemctl reload named-chroot
+# systemctl status named-chroot
+`````````````````````````````````````

@@ -1,21 +1,7 @@
-■ 前提条件
-・OS
-[root@c22383d8a0fb /]# cat /etc/redhat-release
-AlmaLinux release 8.10 (Cerulean Leopard)
-・epel-releaseインストール済み
-・ミドルウェアインストール時にインターネットへの経路が存在していること
-
-
 ■　nfsサーバ作業手順
 ※nfsサーバとnfsクライアントがある。
 　nfsサーバ=EFS,FSx クライアント=EC2
   https://tech.tiger-rack.co.jp/programming/nfs_setup/
-
-0. host名変更
-```````````````````````````````
-# hostnamectl set-hostname ホスト名
-# hostname
-```````````````````````````````
 
 1. 関連パッケージインストール
 ``````````````````````````````````
@@ -27,11 +13,24 @@ AlmaLinux release 8.10 (Cerulean Leopard)
 ``````````````````````````````````
 
 2. 公開ディレクトリと設定
+``````````````````````````````````
+# 1. 普通に公開用のディレクトリを作るだけ
+# mkdir -p /srv/nfs
+
+# 2. すぐにエクスポート設定を追記する
+# vi /etc/exports
+/srv/nfs 共有許可IP/CIDR(rw,async,no_root_squash)
+
+# 3. 設定を反映する
+# exportfs -rv
+``````````````````````````````````
+
+3. 公開ディレクトリと設定(dockerの場合)
+``````````````````````````````````
 ※docker環境はファイルシステムがoverlayでnfsに対応してない
 　ファイルシステムのため、エラーが出る
 　exportfs: /nfs does not support NFS export
 　そのため、ext4ファイルシステムを作って、それを対象にする
-````````````````````````````````
 // 1GBのからファイル作成
 # dd if=/dev/zero of=/srv/nfs_disk.img bs=1M count=1024
 // 対象ファイルにext4ファイルシステム作成
@@ -44,13 +43,21 @@ AlmaLinux release 8.10 (Cerulean Leopard)
 ----------以下を追記する-----------
 /srv/nfs 172.28.0.0/16(rw,async,no_root_squash)
 
+# vi /etc/fstab
+----------以下を追記する-----------
+/srv/nfs_disk.img  /srv/nfs  ext4  loop  0 0
+
 # exportfs -rv
 ``````````````````````````````````
 
-3. firewall,selinuxが無効になっている事を確認
+4. firewall許可,selinux無効
 ```````````````````````````````
-# systemctl status firewalld
-⇒起動してたら、stopとdisable
+# firewall-cmd --add-service=nfs --permanent
+# firewall-cmd --add-service=rpc-bind --permanent
+# firewall-cmd --add-service=mountd --permanent
+# firewall-cmd --reload
+# firewall-cmd --list-all
+
 # getenforce
 ⇒disableでなければ、以下無効設定をして再起動
 # vi /etc/selinux/config

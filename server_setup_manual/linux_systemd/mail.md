@@ -27,6 +27,10 @@ myhostname = mail.hoge.com
 mydomain = hoge.com
 // ドメイン補完時の設定
 myorigin = $mydomain
+
+// hoge.comがメール宛先の最終目的地であることを認識させるため
+mydestination = $myhostname, localhost.$mydomain, localhost, $mydomain
+
 inet_interfaces = all
 inet_protocols = ipv4
 // メール配送先(デフォルト設定)
@@ -241,38 +245,22 @@ https://www.rem-system.com/mail-postfix01/
 
 ## SMTP(Postfix)
 
-■ 前提条件
-・OS
-[root@c22383d8a0fb /]# cat /etc/redhat-release
-AlmaLinux release 8.10 (Cerulean Leopard)
-・epel-releaseインストール済み
-・ミドルウェアインストール時にインターネットへの経路が存在していること
-・ansible未対応
-
 ■ 作業手順
 全体設定参照
 https://www.rem-system.com/mail-postfix01/
 
-1. host名変更
-```````````````````````````````
-# hostnamectl set-hostname ホスト名
-# hostname
-```````````````````````````````
 
-2. postfixインストール
+1. postfixインストール
 ```````````````````````````
 # dnf install -y postfix
-# systemctl start postfix
-# systemctl enable postfix
-# systemctl status postfix
 ```````````````````````````
 
-3. 設定ファイル編集と反映
+2. 設定ファイル編集と反映
 ```````````````````````````
 # vi /etc/postfix/main.cf
 ※myhostname,mydomainで指定するドメインは、どこのdnsサーバにも存在してない
 　架空のドメインでも良い模様。
-[root@dbc56a3925ae ~]# dig abc313232.com
+[root@dbc56a3925ae ~]# dig smtp.hoge.com
 
 ; <<>> DiG 9.11.36-RedHat-9.11.36-16.el8_10.4 <<>> abc313232.com
 ;; global options: +cmd
@@ -295,30 +283,34 @@ com.                    643     IN      SOA     a.gtld-servers.net. nstld.verisi
 
 ----------以下を追記--------
 // ホスト名
-myhostname = mail.abc313232.com
-mydomain = abc313232.com
+myhostname = smtp.hoge.com
+mydomain = hoge.com
 // envelopeFrom未指定の場合に付与するドメインを指定
 // 例ではabc313232.com。myhostnameを指定すると、mail.abc313232.com
 myorigin = $mydomain
 // www.abc313232.comのようなサブドメインを、abc313232.comに統一する
-masquerade_domains = abc313232.com
+masquerade_domains = hoge.com
+
+// ★LAN内で他サーバから中継させるための必須追加設定★
+// デフォルトは localhost のみになっているため、all にして他サーバからの接続を受け付ける
+inet_interfaces = all
+inet_protocols = ipv4
+// このサーバ経由でメールを送っていいLANのネットワーク範囲（例）を指定する
+mynetworks = 127.0.0.0/8, 192.168.3.0/24
 
 # postconf -n
 # postfix check
-# systemctl restart postfix
+# systemctl start postfix
+# systemctl enable postfix
+# systemctl status postfix
 ```````````````````````````
 
-3. firewall,selinuxが無効になっている事を確認
+3. firewall許可
 ```````````````````````````````
-# systemctl status firewalld
-⇒起動してたら、stopとdisable
-# getenforce
-⇒disableでなければ、以下無効設定をして再起動
-# vi /etc/selinux/config
-----------以下を設定------------
-SELINUX=disabled
-
-# reboot
+# firewall-cmd --add-service=smtp --permanent
+# firewall-cmd --add-service=smtp-submission --permanent
+# firewall-cmd --reload
+# firewall-cmd --list-all
 ```````````````````````````````
 
 4. mailテスト送信
