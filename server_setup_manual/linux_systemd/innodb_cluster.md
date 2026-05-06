@@ -102,7 +102,7 @@ Please select a recovery method [C]lone/[I]ncremental recovery/[A]bort (default 
 Dba.getCluster: This function is not available through a session to a standalone instance (metadata exists, instance belongs to that metadata, but GR is not active) (MYSQLSH 51314)
 ````````````````````````````````````````````````````
 
-6. mysqlrouter設定
+6. mysqlrouter初期設定
 ````````````````````````````````````````````````````
 // mysqlrouterサーバ(primary,secondary) 両方で実施
 
@@ -117,9 +117,9 @@ Dba.getCluster: This function is not available through a session to a standalone
 // bootstrap後の設定確認（※手動での書き換えは不要です！）
 # cat /etc/mysqlrouter/mysqlrouter.conf
 // --- 確認ポイント ---
-// [routing:innodb_cluster_default_rw] の bind_port が 6446
-// [routing:innodb_cluster_default_ro] の bind_port が 6447
-// になっていればOKです。（bind_address は 0.0.0.0 のままで問題ありません）
+// [routing:bootstrap_rw] の bind_port が 6446
+// [routing:bootstrap_ro] の bind_port が 6447
+// になっていればOK。（bind_address は 0.0.0.0 のままで一旦良い）
 
 //　【重要】OSでの自動起動を無効化（Pacemakerに管理させるため）
 # systemctl disable mysqlrouter
@@ -137,8 +137,12 @@ Dba.getCluster: This function is not available through a session to a standalone
 # pcs host auth mysqlrouterPrimary mysqlrouterSecondary
 Username : hacluster
 // エラーが発生する場合はpcsdが起動している事とfirewalを確認
+// mysqlrouteのbindportも開ける
 # firewall-cmd --add-service=high-availability --permanent
+# firewall-cmd --add-port=6446/tcp --permanent
+# firewall-cmd --add-port=6447/tcp --permanent
 # firewall-cmd --reload
+# firewall-cmd --list-all
 
 # pcs cluster setup create_cluster mysqlrouterPrimary mysqlrouterSecondary
 
@@ -167,6 +171,36 @@ Username : hacluster
 # pcs resource update Router_VIP_RO nic="VIP付与nic名"
 // エラーが残る場合
 # pcs resource cleanup 
+
+8. VIPとmysqlrouteのbind設定
+````````````````````````````````````````````````````
+// mysqlrouterサーバ(primary)
+# vi /etc/mysqlrouter/mysqlrouter.conf
+--------以下内容で編集---------------
+[routing:bootstrap_rw]
+#bind_address=0.0.0.0
+bind_address=primaryVIP
+
+[routing:bootstrap_ro]
+#bind_address=0.0.0.0
+bind_address=secondaryVIP
+
+# pcs resource restart mysqlrouter
+
+// mysqlrouterサーバ(secondary)
+# vi /etc/mysqlrouter/mysqlrouter.conf
+--------以下内容で編集---------------
+[routing:bootstrap_rw]
+#bind_address=0.0.0.0
+bind_address=primaryVIP
+
+[routing:bootstrap_ro]
+#bind_address=0.0.0.0
+bind_address=secondaryVIP
+
+````````````````````````````````````````````````````
+
+-------------------------
 
 // ------------------------------------
 // フェールオーバー検証
@@ -200,5 +234,5 @@ Username : hacluster
 ※aws /etc/hostsに書いてあった、
 10.201.1.30 aws_spdb14rw
 10.201.1.31 aws_spdb14ro
-は、pcs cluster構築時に作成する仮想IPであって、実体（ec2）は存在していない
+は、pcs cluster構築時に作成する仮想IPであって、実体（ec2等）は存在していない
 そのため、上記に該当するサーバの実体は作らなくて良い
