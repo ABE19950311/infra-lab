@@ -1,3 +1,9 @@
+■ansible yml作らずに投げる方法。hostsがあればいける
+ansible all -i /etc/ansible/inventories/hosts -b -m systemd -e "ansible_python_interpreter=/usr/bin/python3" -a "name=nrpe state=restarted"
+ansible all -i /etc/ansible/inventories/hosts -b -m lineinfile     -e "ansible_python_interpreter=/usr/bin/python3"     -a "path=/etc/nagios/nrpe.cfg regexp='^command\[check_proc\]='
+  line='command[check_proc]=/usr/lib64/nagios/plugins/check_procs -w \$ARG1\$ -c \$ARG2\$ -C \$ARG3\$'"
+
+
 /etc/yum.repos.d/CentOS-Base.repo
 
 [root@aws_st6kanri1001 ~]# cat /etc/yum.repos.d/CentOS-Base.repo
@@ -119,6 +125,10 @@ https://replication.hatenablog.com/entry/20110419/1303222195
 
 ■OS起動の流れおよびsysVinit,upstart,systemdの違い
 https://tech.pjin.jp/blog/2020/11/11/linux-system-boot-2
+
+■webサーバ(httpd)からAPサーバ(php-fpm)に通信通らず404
+DocumentRootが仮に/var/www/html/shopの場合、apサーバだけでなく、webサーバの方にも
+ディレクトリがないと404が返る
 
 ■serviceとsystemdのコマンド違い一覧
 https://bacchi.me/linux/systemd-memo/

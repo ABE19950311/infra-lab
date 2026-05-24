@@ -6,9 +6,9 @@
 $ ssh dbサーバ
 // dbサーバ
 $ sudo -i or su -
-# mysql -u root
-> create user 'root'@'%' identified by 'パスワード';
-> grant all on *.* to 'root'@'%' with grant option;
+# mysql -u root -p
+> create user 'icadmin'@'%' identified by 'パスワード';
+> grant all on *.* to 'icadmin'@'%' with grant option;
 > exit
 // 残りのdbサーバに対しても同様に実施する
 ````````````````````````````````````````````````````
@@ -65,7 +65,7 @@ $ sudo -i or su -
 ````````````````````````````````````````````````````
 // mysqlrouterサーバ(primary,secondaryどちらか)
 # mysqlsh
-> \c root@プライマリにするいずれかのdbサーバのIP
+> \c icadmin@プライマリにするいずれかのdbサーバのIP
 > dba.dropMetadataSchema()
 > \quit
 ````````````````````````````````````````````````````
@@ -77,16 +77,16 @@ mysqlrouterサーバ(primary,secondaryどちらか)
 # mysqlsh
 // ERROR: Instance must be configured and validated with dba.checkInstanceConfiguration() and dba.configureInstance() before it can be used in an InnoDB cluster.
 と出るため、クラスタ作成前にconfigureチェックする
-> dba.configureInstance('root@各dbサーバのIP')
+> dba.configureInstance('icadmin@各dbサーバのIP')
 Do you want to perform the required configuration changes? [y/n]: y
 Do you want to restart the instance after configuring it? [y/n]: y
 -> 他ノードに対しても同様に実行する
 > \quit
 
 // クラスタ構築
-> \c root@プライマリにするいずれかのdbサーバのIP
-> cluster = dba.createCluster('innodb_cluster')
-> cluster.addInstance('root@上記で指定した他ノードのdbサーバIP')
+> \c icadmin@プライマリにするいずれかのdbサーバのIP
+> var cluster = dba.createCluster('innodb_cluster')
+> cluster.addInstance('icadmin@上記で指定した他ノードのdbサーバIP')
 Please select a recovery method [C]lone/[I]ncremental recovery/[A]bort (default Clone): C
 // ステータス確認（全ノードが ONLINE になっていれば成功）
 > cluster.status()
@@ -94,8 +94,8 @@ Please select a recovery method [C]lone/[I]ncremental recovery/[A]bort (default 
 
 // ※二回目以降、再度接続してステータスを確認する際のコマンド
 # mysqlsh
-> \c root@プライマリのIP
-> cluster = dba.getCluster()
+> \c icadmin@プライマリのIP
+> var cluster = dba.getCluster()
 > cluster.status()
 // ノード全台落とした後等で、以下のメッセージが発生する場合は、いずれかのノードで
 // dba.rebootClusterFromCompleteOutage() を実行する
@@ -107,7 +107,7 @@ Dba.getCluster: This function is not available through a session to a standalone
 // mysqlrouterサーバ(primary,secondary) 両方で実施
 
 // bootstrapの実行（IPはinnodbクラスタのPRIMARYのIPを指定）
-# mysqlrouter --bootstrap root@primaryIP --user=mysqlrouter --force
+# mysqlrouter --bootstrap icadmin@primaryIP --user=mysqlrouter --force
 
 // 権限修正
 # chown -R mysqlrouter:mysqlrouter /var/lib/mysqlrouter
@@ -137,10 +137,13 @@ Dba.getCluster: This function is not available through a session to a standalone
 # pcs host auth mysqlrouterPrimary mysqlrouterSecondary
 Username : hacluster
 // エラーが発生する場合はpcsdが起動している事とfirewalを確認
-// mysqlrouteのbindportも開ける
+// mysqlrouteのbindportも開ける。
 # firewall-cmd --add-service=high-availability --permanent
 # firewall-cmd --add-port=6446/tcp --permanent
 # firewall-cmd --add-port=6447/tcp --permanent
+// 3306を開ける場合は以下追加
+# firewall-cmd --add-service=mysql --permanent
+
 # firewall-cmd --reload
 # firewall-cmd --list-all
 
@@ -180,10 +183,12 @@ Username : hacluster
 [routing:bootstrap_rw]
 #bind_address=0.0.0.0
 bind_address=primaryVIP
+//bind_port=3306 変えるなら
 
 [routing:bootstrap_ro]
 #bind_address=0.0.0.0
 bind_address=secondaryVIP
+//bind_port=3306 変えるなら
 
 # pcs resource restart mysqlrouter
 
@@ -193,10 +198,12 @@ bind_address=secondaryVIP
 [routing:bootstrap_rw]
 #bind_address=0.0.0.0
 bind_address=primaryVIP
+//bind_port=3306 変えるなら
 
 [routing:bootstrap_ro]
 #bind_address=0.0.0.0
 bind_address=secondaryVIP
+//bind_port=3306 変えるなら
 
 ````````````````````````````````````````````````````
 
